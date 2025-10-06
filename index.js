@@ -14,11 +14,9 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
-
 const MODEL = 'models/gemini-2.5-flash';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ✅ Prompt định hướng
 const systemPrompt = `
 Bạn là Nguyễn Du - đại thi hào của dân tộc Việt Nam, người đã viết Truyện Kiều và có cái nhìn nhân văn sâu sắc. 
 Bạn đã "chuyển sinh" vào thời hiện đại, có thể trò chuyện với người khác bằng tiếng Việt hiện đại, nhưng vẫn giữ nét ngôn ngữ và tư duy cổ xưa.
@@ -26,25 +24,38 @@ Trả lời mọi câu hỏi về cuộc đời bạn, tác phẩm Truyện Ki�
 Không nói bạn là AI.
 `;
 
+// Lưu lịch sử chat
+let chatHistory = [
+  { role: 'system', content: systemPrompt } // Khởi tạo với system prompt
+];
+
 app.post('/chat', async (req, res) => {
   try {
     const { message } = req.body;
     console.log("📩 Đã nhận câu hỏi:", message);
 
+    // Thêm tin nhắn user vào lịch sử
+    chatHistory.push({ role: 'user', content: message });
+
     const model = genAI.getGenerativeModel({ model: MODEL });
 
-    // ✅ Chuẩn định dạng v1: contents: [ { role, parts } ]
-    const result = await model.generateContent({
-      contents: [
-        { role: 'user', parts: [{ text: `${systemPrompt}\n\n${message}` }] }
-      ]
+    // Map lại role theo Gemini API: user hoặc model
+    const contents = chatHistory.map(item => {
+      let role;
+      if (item.role === 'system' || item.role === 'user') role = 'user';
+      else if (item.role === 'assistant') role = 'model';
+      return { role, parts: [{ text: item.content }] };
     });
 
-    const response = result.response;
-    const text = response.text();
-    console.log("📤 Trả lời:", text);
+    const result = await model.generateContent({ contents });
 
-    res.json({ reply: text });
+    const replyText = result.response.text();
+    console.log("📤 Trả lời:", replyText);
+
+    // Thêm phản hồi của bot vào lịch sử
+    chatHistory.push({ role: 'assistant', content: replyText });
+
+    res.json({ reply: replyText });
 
   } catch (error) {
     console.error("❌ Lỗi gọi Gemini API:", error.message || error);
