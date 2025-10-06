@@ -14,8 +14,8 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
-// ✅ Dùng đúng model được hỗ trợ bởi API v1
-const MODEL = 'models/gemini-2.5-pro';
+
+const MODEL = 'models/gemini-2.5-flash';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ✅ Prompt định hướng
